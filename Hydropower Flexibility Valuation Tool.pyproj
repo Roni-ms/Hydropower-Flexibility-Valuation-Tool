@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>22846c91-97ca-499a-9ea5-8b3d38437b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Hydropower_Flexibility_Valuation_Tool.py</StartupFile>
+    <StartupFile>Optimization model.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,6 +22,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Hydropower_Flexibility_Valuation_Tool.py" />
+    <Compile Include="Optimization model.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
