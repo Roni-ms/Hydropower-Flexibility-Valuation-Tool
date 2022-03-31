@@ -59,20 +59,15 @@ def prepare_input_data_optimization ( ):
     df3_forecast=pandas.read_csv('./HydroForecast_trinity-center-v6.csv')
     df3_forecast['Date'] = pandas.to_datetime(df3_forecast['Date'])
     forecast=read_forecast_data (price_year_inp,flow_month_inp, df3_forecast)
-    #forecast.reset_index(drop=True)
+
     df3_forecast2=pandas.read_csv('./Persistence.csv')
     df3_forecast2['Date'] = pandas.to_datetime(df3_forecast2['Date'])
     forecast2=read_forecast_data (price_year_inp,flow_month_inp, df3_forecast2)
-    #forecast2.reset_index(drop=True)
-    #print(forecast2)
-    #df3_obs=pandas.read_csv('./Observations.csv')
+    
     df3_obs=pandas.read_csv('./Observations.csv')
     df3_obs['Date'] = pandas.to_datetime(df3_obs['Date'])
     observation=read_flow_year_month(price_year_inp,flow_month_inp, df3_obs)
-    #observation.reset_index(drop=True)
-    
-    #print(observation['discharge'])
-    #print(observation)
+   
     observation['discharge'].reset_index(drop=True,inplace=True)
     forecast['discharge_q0.5'].reset_index(drop=True,inplace=True)
     forecast2['discharge'].reset_index(drop=True,inplace=True)
@@ -243,10 +238,7 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
     solution_table_milp.loc[:, 'RT_FLOW_DISPATCH'] = solution_table_milp.loc[:, 'Optimal flow'].values
     solution_table_milp.loc[:, 'DA_POWER'] = day_ahead_mdl_output.loc[:, 'Power dispatch'].values
     solution_table_milp.loc[:, 'RT_POWER'] = solution_table_milp.loc[:, 'Power dispatch'].values
-   
-    # print('End of creating model')
-    # stop = timeit.default_timer()
-    # print('Time: ', stop - start)
+ 
     print('End of solving RT model, total revenue: {:>.2f}'.format(total_revenue))
     stop = timeit.default_timer()
     print('Time: ', stop - start)
@@ -254,7 +246,7 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
 if __name__=='__main__':
     ls_month = range(1, 13)
     dict_revenue_p50 = dict()
-
+    dict_time_p50 = dict()
     dict_df_rt_p50 = dict()
     min_flow_list=[]
     for m in ls_month:
@@ -268,16 +260,11 @@ if __name__=='__main__':
         #forecast_flow = model_input['discharge']
         price_day_ahead = model_input['day_ahead_price']
         observed_flow   = model_input['discharge']
-        #observed_flow.to_csv(r'C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation/observed_flow.csv', index = False)
         price_real_time = model_input['Real_time_price']
         t0 = time.time()
    
         try:
             solution_table_milp, revenue, flow_min = create_model_real_time(forecast_flow, observed_flow, price_real_time, price_day_ahead)
-            #solution_table_milp, revenue = create_model_real_time_only (observed_flow,price_real_time,read_flow_constraints,df_eff)
-    
-            #print(solution_table_milp)
-            #solution_table_milp.to_csv(r'C:/Users/RONIMS/source/repos/Hydropower Flexibility Valuation Tool/base.csv', index = False)
             dict_revenue_p50[m] = revenue
             min_flow_list.append(flow_min)
             dict_df_rt_p50[m] = solution_table_milp
@@ -290,8 +277,26 @@ if __name__=='__main__':
 
         #print minflow
         ls_rev_p50 = list()
-        for m in ls_month:
-            ls_rev_p50.append(dict_revenue_p50[m])
-        with open('C:/Users/RONIMS/source/repos/Hydropower Flexibility Valuation Tool/min_flow.txt', 'w') as f:
-            f.write("%s\n" % min_flow_list)
-            f.write("%s\n" % ls_rev_p50)
+    for m in ls_month:
+        ls_rev_p50.append(dict_revenue_p50[m])
+    with open('C:/Users/RONIMS/source/repos/Hydropower Flexibility Valuation Tool/min_flow.txt', 'w') as f:
+        f.write("%s\n" % min_flow_list)
+        f.write("%s\n" % ls_rev_p50)
+    df_rev = pandas.DataFrame(
+        {
+            #'Constant outflow': ls_rev_obs,
+            'Revenue ': ls_rev_p50,
+            #'No storage between days': ls_rev_per,
+            #'CNRFC': ls_rev_sfl,
+        },
+        index=['Jan', 'Feb','Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        #index=['Jan', 'Feb','Mar', 'Apr', 'May', 'Jun'],
+        #index=ls_month,
+    )
+    (df_rev/1E3).plot.bar()
+    plt.ylabel('Total revenue(Thousand $)',fontsize=20)
+    plt.xlabel('Month',fontsize=20)
+    plt.legend(prop={"size":20})
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+    plt.show() 
