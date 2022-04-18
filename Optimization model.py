@@ -24,7 +24,7 @@ cms_to_cfs=35.31
 required_hours_for_min_storage=48
 min_storage=0/acre_to_cfs #336 case study
 max_storage=570*3/acre_to_cfs #570 case study
-min_flow=50
+min_flow=100
 hourly_ramp_factor=.1
 hourly_spilage_factor=1
 max_flow= 728 #728 case stdy
@@ -265,9 +265,9 @@ if __name__=='__main__':
         model_input = prepare_input_data_optimization()
 
         # First, use upstream p50 forecasts
-        #forecast_flow   = model_input['Upstream_q0.5']
+        forecast_flow   = model_input['Upstream_q0.5']
         #forecast_flow = model_input['Persistence']
-        forecast_flow = model_input['discharge']
+        #forecast_flow = model_input['discharge']
         price_day_ahead = model_input['day_ahead_price']
         observed_flow   = model_input['discharge']
         price_real_time = model_input['Real_time_price']
