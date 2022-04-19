@@ -24,8 +24,8 @@ cms_to_cfs=35.31
 required_hours_for_min_storage=48
 min_storage=0/acre_to_cfs #336 case study
 max_storage=570*3/acre_to_cfs #570 case study
-min_flow=100
-hourly_ramp_factor=.1
+min_flow=50
+hourly_ramp_factor=.5
 hourly_spilage_factor=1
 max_flow= 728 #728 case stdy
 max_power=18.3    #18.3 case study 
@@ -143,7 +143,7 @@ def create_model_day_ahead (forecast_flow,price_day_ahead):
             tm.add_constraint(R[i]==0)
     
     #tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
-   
+    tm.add_constraint(tm.sum(Q[i]+P[i] for i in time_range)==forecast_flow.sum())
     tm.print_information()
     print('End of creating model')
     #tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
@@ -218,7 +218,7 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
             )
         )
 
-    
+    tm.add_constraint(tm.sum(Q[i]+P[i] for i in time_range)==observed_flow.sum())
     #tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
     
     tm.print_information()
