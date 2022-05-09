@@ -87,7 +87,7 @@ def prepare_input_data_optimization ( ):
 
     return model_input
 
-def create_model_day_ahead (forecast_flow,price_day_ahead):
+def create_model_day_ahead (forecast_flow,price_day_ahead, Begin_R):
     #time_range,data_list_input,read_flow_constraints=prepar_input_data_optimization ( )
     solution_table_milp=pandas.DataFrame()
     inceased_storage_factor=1
@@ -140,15 +140,15 @@ def create_model_day_ahead (forecast_flow,price_day_ahead):
             tm.add_constraint(P[i-1]-P[i]<= hourly_spilage_factor*P[i-1]) #spillage down constraint
             tm.add_constraint(Q[i]>=flow_min)
         if i==0:
-            tm.add_constraint(R[i]==0)
+            tm.add_constraint(R[i]==Begin_R)
     
     #tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
-    tm.add_constraint(tm.sum(Q[i]+P[i] for i in time_range)==forecast_flow.sum())
-    tm.print_information()
+    #tm.add_constraint(tm.sum(Q[i]+P[i] for i in time_range)==forecast_flow.sum())
+    #tm.print_information()
     print('End of creating model')
     #tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
-    tms = tm.solve(log_output=True)
-    tms.display()
+    tms = tm.solve(log_output=False)
+    #tms.display()
     revenue=tms.objective_value
     for i in time_range:
         power = Q[i].solution_value*conversion_factor
@@ -163,9 +163,9 @@ def create_model_day_ahead (forecast_flow,price_day_ahead):
     print('Time: ', stop - start)
     return solution_table_milp,revenue
 
-def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day_ahead):
-    
-    day_ahead_mdl_output,day_ahead_rev =create_model_day_ahead (forecast_flow,price_day_ahead)
+def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day_ahead, Begin_R):
+    End_R=0
+    day_ahead_mdl_output,day_ahead_rev =create_model_day_ahead (forecast_flow,price_day_ahead,Begin_R)
     solution_table_milp=pandas.DataFrame()
   
     inceased_storage_factor=1
@@ -205,7 +205,7 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
             tm.add_constraint(P[i-1]-P[i]<= hourly_spilage_factor*P[i-1]) #spillage down constraint
             tm.add_constraint(Q[i]>=flow_min)
         if i==0:
-            tm.add_constraint(R[i]==0)
+            tm.add_constraint(R[i]==Begin_R)
             
         tm.add_constraint(
             A[i]>=price_real_time.loc[i]*(
@@ -218,19 +218,22 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
             )
         )
 
-    tm.add_constraint(tm.sum(Q[i]+P[i] for i in time_range)==observed_flow.sum())
+    #tm.add_constraint(tm.sum(Q[i]+P[i] for i in time_range)==observed_flow.sum())
     #tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
     
-    tm.print_information()
+    #tm.print_information()
     print('End of creating model')
     # tm.export_as_lp(basename="Hydropower_%s", path="C:/Users/RONIMS/Documents/C++ project/Hydropower_flexibility_evalutation")
-    tms = tm.solve(log_output=True)
+    tms = tm.solve(log_output=False)
     assert tms is not None, "model can't solve"
     revenue=tms.objective_value
     total_revenue=revenue+day_ahead_rev
-    tms.display()
+    #tms.display()
     for i in time_range:
+        if i==len(time_range)-1:
+            End_R=R[i].solution_value
         power = Q[i].solution_value*conversion_factor
+        print(R[i].solution_value)
         solution_table_milp=solution_table_milp.append(pandas.DataFrame({"Optimal flow":Q[i].solution_value,\
                                                                          "Storage":R[i].solution_value,
                                                      "By pass":P[i].solution_value, 
@@ -251,9 +254,10 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
     print('End of solving RT model, total revenue: {:>.2f}'.format(total_revenue))
     stop = timeit.default_timer()
     print('Time: ', stop - start)
-    return solution_table_milp,total_revenue, flow_min
+    print ("End_R", End_R)
+    return solution_table_milp,total_revenue, flow_min,End_R
 if __name__=='__main__':
-    ls_month = range(1, 13)
+    ls_month = range(1, 2)
     dict_revenue_p50 = dict()
     dict_time_p50 = dict()
     dict_df_rt_p50 = dict()
@@ -280,6 +284,8 @@ if __name__=='__main__':
         monthly_revenue_sum=0
         #days=2
         for d in range(days):
+            if d==0:
+                begin_R=0
             forecast_flow_daily=forecast_flow.iloc[d*hrs:d*hrs+hrs]
             observed_flow_daily=observed_flow.iloc[d*hrs:d*hrs+hrs]
             price_real_time_daily=price_real_time.iloc[d*hrs:d*hrs+hrs]
@@ -290,18 +296,19 @@ if __name__=='__main__':
             price_real_time_daily.reset_index(drop=True,inplace=True)
             price_day_ahead_daily.reset_index(drop=True,inplace=True)
 
-            print(len(forecast_flow_daily), len(observed_flow_daily), len(price_real_time_daily), len(price_day_ahead_daily))
-
+            #print(len(forecast_flow_daily), len(observed_flow_daily), len(price_real_time_daily), len(price_day_ahead_daily))
+           
 
             t0 = time.time()
    
             try:
-                solution_table_milp, revenue, flow_min = create_model_real_time(forecast_flow_daily, observed_flow_daily,\
-                   price_real_time_daily, price_day_ahead_daily)
+                solution_table_milp, revenue, flow_min, end_R = create_model_real_time(forecast_flow_daily, observed_flow_daily,\
+                   price_real_time_daily, price_day_ahead_daily, begin_R)
                 monthly_revenue_sum+=revenue
-                
+                begin_R=end_R
                 min_flow_list.append(flow_min)
                 #dict_df_rt_p50[m] = solution_table_milp
+                print('day', 'month', 'beginR', 'Endr', d, m, begin_R, end_R)
             
             except:
                 monthly_revenue_sum = None
@@ -311,6 +318,7 @@ if __name__=='__main__':
             #dict_time_p50[m] = time.time() - t0
 
         dict_revenue_p50[m] = monthly_revenue_sum
+        
     ls_rev_p50 = list()
     for m in ls_month:
         ls_rev_p50.append(dict_revenue_p50[m])
