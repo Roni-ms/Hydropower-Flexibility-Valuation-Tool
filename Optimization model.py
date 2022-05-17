@@ -24,7 +24,7 @@ cms_to_cfs=35.31
 required_hours_for_min_storage=48
 min_storage=0/acre_to_cfs #336 case study
 max_storage=570*3/acre_to_cfs #570 case study
-min_flow=50
+min_flow=100
 hourly_ramp_factor=.5
 hourly_spilage_factor=1
 max_flow= 728 #728 case stdy
@@ -87,7 +87,7 @@ def prepare_input_data_optimization ( ):
 
     return model_input
 
-def create_model_day_ahead (forecast_flow,price_day_ahead, Begin_R):
+def create_model_day_ahead (forecast_flow,price_day_ahead, Begin_R,flow_min1):
     #time_range,data_list_input,read_flow_constraints=prepar_input_data_optimization ( )
     solution_table_milp=pandas.DataFrame()
     inceased_storage_factor=1
@@ -98,10 +98,7 @@ def create_model_day_ahead (forecast_flow,price_day_ahead, Begin_R):
     tm = Model(name='MILP_Hydropower_flexibility_valuation_tool')
     tm.parameters.mip.tolerances.mipgap = 0.01
     tm.parameters.timelimit = 1200  
-    if forecast_flow.min()>min_flow:
-        flow_min=min_flow
-    else:
-        flow_min=forecast_flow.min()
+   
               
     
     Q = {(i):tm.continuous_var(name='Q_{0}'.format(i)) for i in time_range} #realeased water via turbine
@@ -138,7 +135,7 @@ def create_model_day_ahead (forecast_flow,price_day_ahead, Begin_R):
             tm.add_constraint(Q[i-1]-Q[i]<=hourly_ramp_factor*Q[i-1]) #ramp down constraints 
             tm.add_constraint(P[i]-P[i-1]<= hourly_spilage_factor*P[i]) #spillage up constraint 
             tm.add_constraint(P[i-1]-P[i]<= hourly_spilage_factor*P[i-1]) #spillage down constraint
-            tm.add_constraint(Q[i]>=flow_min)
+            tm.add_constraint(Q[i]>=flow_min1)
         if i==0:
             tm.add_constraint(R[i]==Begin_R)
     
@@ -163,18 +160,15 @@ def create_model_day_ahead (forecast_flow,price_day_ahead, Begin_R):
     print('Time: ', stop - start)
     return solution_table_milp,revenue
 
-def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day_ahead, Begin_R):
+def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day_ahead, Begin_R,flow_min1,flow_min2):
     End_R=0
-    day_ahead_mdl_output,day_ahead_rev =create_model_day_ahead (forecast_flow,price_day_ahead,Begin_R)
+    day_ahead_mdl_output,day_ahead_rev =create_model_day_ahead (forecast_flow,price_day_ahead,Begin_R,flow_min1)
     solution_table_milp=pandas.DataFrame()
   
     inceased_storage_factor=1
     Big_m=1000000
     time_range=range(0, len(observed_flow))
-    if observed_flow.min()>min_flow:
-        flow_min=min_flow
-    else:
-        flow_min=int(observed_flow.min())
+   
 
     #from docplex.mp.model import Model
     start = timeit.default_timer()
@@ -203,7 +197,7 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
             tm.add_constraint(Q[i-1]-Q[i]<=hourly_ramp_factor*Q[i-1]) #ramp down constraint 
             tm.add_constraint(P[i]-P[i-1]<= hourly_spilage_factor*P[i]) #spillage up constraint 
             tm.add_constraint(P[i-1]-P[i]<= hourly_spilage_factor*P[i-1]) #spillage down constraint
-            tm.add_constraint(Q[i]>=flow_min)
+            tm.add_constraint(Q[i]>=flow_min2)
         if i==0:
             tm.add_constraint(R[i]==Begin_R)
             
@@ -255,9 +249,10 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
     stop = timeit.default_timer()
     print('Time: ', stop - start)
     print ("End_R", End_R)
+    flow_min=flow_min2
     return solution_table_milp,total_revenue, flow_min,End_R
 if __name__=='__main__':
-    ls_month = range(1, 2)
+    ls_month = range(1, 13)
     dict_revenue_p50 = dict()
     dict_time_p50 = dict()
     dict_df_rt_p50 = dict()
@@ -275,8 +270,17 @@ if __name__=='__main__':
         price_day_ahead = model_input['day_ahead_price']
         observed_flow   = model_input['discharge']
         price_real_time = model_input['Real_time_price']
+        if observed_flow.min()>min_flow:
+            flow_min2=min_flow
+        else:
+            flow_min2=int(observed_flow.min())
+
+        if forecast_flow.min()>min_flow:
+            flow_min1=min_flow
+        else:
+            flow_min1=forecast_flow.min()
         
-        
+    
 
         print(len(forecast_flow), len(price_real_time), len(observed_flow))
         #print(forecast_flow, price_real_time, observed_flow,price_day_ahead)
@@ -303,7 +307,7 @@ if __name__=='__main__':
    
             try:
                 solution_table_milp, revenue, flow_min, end_R = create_model_real_time(forecast_flow_daily, observed_flow_daily,\
-                   price_real_time_daily, price_day_ahead_daily, begin_R)
+                   price_real_time_daily, price_day_ahead_daily, begin_R,flow_min1,flow_min2)
                 monthly_revenue_sum+=revenue
                 begin_R=end_R
                 min_flow_list.append(flow_min)
