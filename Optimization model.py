@@ -24,7 +24,7 @@ cms_to_cfs=35.31
 required_hours_for_min_storage=48
 min_storage=0/acre_to_cfs #336 case study
 max_storage=570*3/acre_to_cfs #570 case study
-min_flow=100
+min_flow=50
 hourly_ramp_factor=.5
 hourly_spilage_factor=1
 max_flow= 728 #728 case stdy
@@ -252,11 +252,12 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
     flow_min=flow_min2
     return solution_table_milp,total_revenue, flow_min,End_R
 if __name__=='__main__':
-    ls_month = range(1, 13)
+    ls_month = range(5, 6)
     dict_revenue_p50 = dict()
     dict_time_p50 = dict()
     dict_df_rt_p50 = dict()
     min_flow_list=[]
+    final_output=pandas.DataFrame()
     hrs=24
     for m in ls_month:
         print('Month: ' + str(m))
@@ -311,6 +312,9 @@ if __name__=='__main__':
                 monthly_revenue_sum+=revenue
                 begin_R=end_R
                 min_flow_list.append(flow_min)
+                #final_output= pandas.concat(solution_table_milp)
+                final_output=final_output.append(solution_table_milp)
+                #final_output= pandas.concat(solution_table_milp)
                 #dict_df_rt_p50[m] = solution_table_milp
                 print('day', 'month', 'beginR', 'Endr', d, m, begin_R, end_R)
             
@@ -329,6 +333,10 @@ if __name__=='__main__':
     with open('C:/Users/RONIMS/source/repos/Hydropower Flexibility Valuation Tool/min_flow.txt', 'w') as f:
         f.write("%s\n" % min_flow_list)
         f.write("%s\n" % ls_rev_p50)
+
+    print(final_output)
+    final_output.to_csv (r'C:/Users/RONIMS/source/repos/Hydropower Flexibility Valuation Tool/export_dataframe.csv', index = None, header=True)
+    #final_output.to_csv(index=False)
     df_rev = pandas.DataFrame(
         {
             #'Constant outflow': ls_rev_obs,
