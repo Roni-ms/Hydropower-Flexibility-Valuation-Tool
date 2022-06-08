@@ -115,7 +115,8 @@ def create_model_day_ahead (forecast_flow,price_day_ahead):
     tm.maximize(total_revenue)
     #writing constraints
     for i in time_range:
-        #tm.add_constraint(Q[i]<=forecast_flow.loc[i])
+        if i==0:
+            tm.add_constraint(Q[i]<=forecast_flow.loc[i])
         tm.add_constraint(Q[i]<=max_flow)
         #tm.add_constraint(R[i]==0) #reservoir flow storage 
         if i>=1:
@@ -181,7 +182,8 @@ def create_model_real_time(forecast_flow,observed_flow,price_real_time,price_day
     tm.maximize(total_revenue)
     #writing constraints
     for i in time_range:
-        #tm.add_constraint(Q[i]<=observed_flow.loc[i])
+        if i==0:
+            tm.add_constraint(Q[i]<=observed_flow.loc[i])
         tm.add_constraint(Q[i]<=max_flow)
         #tm.add_constraint(R[i]==0) 
         if i>=1:
